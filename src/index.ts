@@ -1,42 +1,54 @@
 import 'dotenv/config';
+import * as fs from 'fs';
+import * as path from 'path';
 import * as readline from 'readline';
 import { runQuestionFlow } from './cli/questions';
 import { VariationGenerator } from './core/variations';
 import { TemplateEngine } from './core/engine';
+import { RetryManager } from './core/retry';
 import { PromptConfig } from './core/types';
 
-const SYSTEM_PROMPT = `Você é um assistente especializado. Responda sempre em Markdown. 
-Seja preciso e objetivo. Se não souber algo, diga explicitamente.`;
+const SYSTEM_PROMPT =
+  'Você é um assistente especializado. Responda sempre em Markdown. ' +
+  'Seja preciso e objetivo. Se não souber algo, diga explicitamente.';
 
-async function pickVariation(variations: { direct: string; contextual: string; chainOfThought: string }): Promise<string> {
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+function ask(question: string): Promise<string> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  const ask = (q: string) => new Promise<string>(res => rl.question(q + '\n> ', res));
-
-  console.log('\n─────────────────────────────────────────');
-  console.log('VARIAÇÕES GERADAS\n');
-  console.log('[1] DIRETA\n' + variations.direct);
-  console.log('\n[2] CONTEXTUALIZADA\n' + variations.contextual);
-  console.log('\n[3] CHAIN-OF-THOUGHT\n' + variations.chainOfThought);
-  console.log('─────────────────────────────────────────');
-
-  const choice = await ask('\nEscolha uma variação [1/2/3]:');
-  rl.close();
-
-  const map: Record<string, string> = { '1': variations.direct, '2': variations.contextual, '3': variations.chainOfThought };
-  return map[choice.trim()] ?? variations.contextual;
+  return new Promise(res => rl.question(question + '\n> ', ans => { rl.close(); res(ans.trim()); }));
 }
 
-async function sendToAI(prompt: string): Promise<void> {
-  const apiKey = process.env.AI_API_KEY;
-  const provider = process.env.AI_PROVIDER ?? 'anthropic';
+function exportPrompt(prompt: string, response: string): void {
+  const dir = path.join(process.cwd(), 'exports');
+  fs.mkdirSync(dir, { recursive: true });
+  const ts = new Date().toISOString().replace(/[:.]/g, '-');
+  const file = path.join(dir, `prompt-${ts}.md`);
+  fs.writeFileSync(file, `# Prompt\n\n${prompt}\n\n---\n\n# Resposta\n\n${response}\n`);
+  console.log(`\n✔ Exportado: ${file}`);
+}
 
-  if (!apiKey) {
-    console.log('\n[Modo offline — sem AI_API_KEY]\nPrompt gerado:\n\n' + prompt);
-    return;
+// ─── variação picker ─────────────────────────────────────────────────────────
+
+async function pickVariation(v: { direct: string; contextual: string; chainOfThought: string }): Promise<string> {
+  const sep = '─'.repeat(50);
+  console.log(`\n${sep}\n[1] DIRETA\n${v.direct}\n\n[2] CONTEXTUALIZADA\n${v.contextual}\n\n[3] CHAIN-OF-THOUGHT\n${v.chainOfThought}\n${sep}`);
+
+  let choice = '';
+  while (!['1', '2', '3'].includes(choice)) {
+    choice = await ask('\nEscolha uma variação [1/2/3]:');
+    if (!['1', '2', '3'].includes(choice)) console.log('  ⚠ Digite 1, 2 ou 3.');
   }
 
-  if (provider === 'anthropic') {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+  return { '1': v.direct, '2': v.contextual, '3': v.chainOfThought }[choice]!;
+}
+
+// ─── streaming ───────────────────────────────────────────────────────────────
+
+async function streamAnthropic(prompt: string, apiKey: string): Promise<string> {
+  const retry = new RetryManager();
+  const res = await retry.execute(() =>
+    fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -45,60 +57,96 @@ async function sendToAI(prompt: string): Promise<void> {
       },
       body: JSON.stringify({
         model: process.env.AI_MODEL ?? 'claude-sonnet-4-5',
-        max_tokens: parseInt(process.env.AI_MAX_TOKENS ?? '2000'),
+        max_tokens: parseInt(process.env.AI_MAX_TOKENS ?? '2000', 10),
         system: SYSTEM_PROMPT,
         stream: true,
         messages: [{ role: 'user', content: prompt }],
       }),
-    });
+    }).then(r => {
+      if (!r.ok) { const e: any = new Error(`HTTP ${r.status}`); e.status = r.status; throw e; }
+      return r;
+    })
+  );
 
-    const reader = res.body!.getReader();
-    const decoder = new TextDecoder();
-    console.log('\n─── RESPOSTA ───\n');
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let full = '';
+  console.log('\n─── RESPOSTA ───\n');
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const lines = decoder.decode(value).split('\n').filter(l => l.startsWith('data: '));
-      for (const line of lines) {
-        try {
-          const data = JSON.parse(line.slice(6));
-          if (data.type === 'content_block_delta') process.stdout.write(data.delta?.text ?? '');
-        } catch {}
-      }
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    for (const line of decoder.decode(value).split('\n').filter(l => l.startsWith('data: '))) {
+      try {
+        const data = JSON.parse(line.slice(6));
+        if (data.type === 'content_block_delta') {
+          const chunk = data.delta?.text ?? '';
+          full += chunk;
+          process.stdout.write(chunk);
+        }
+      } catch { /* linha incompleta — ignorar */ }
     }
-    console.log('\n');
-  } else if (provider === 'openai') {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  }
+  console.log('\n');
+  return full;
+}
+
+async function streamOpenAI(prompt: string, apiKey: string): Promise<string> {
+  const retry = new RetryManager();
+  const res = await retry.execute(() =>
+    fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: process.env.AI_MODEL ?? 'gpt-4o',
         stream: true,
-        messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: prompt }],
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: prompt },
+        ],
       }),
-    });
+    }).then(r => {
+      if (!r.ok) { const e: any = new Error(`HTTP ${r.status}`); e.status = r.status; throw e; }
+      return r;
+    })
+  );
 
-    const reader = res.body!.getReader();
-    const decoder = new TextDecoder();
-    console.log('\n─── RESPOSTA ───\n');
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let full = '';
+  console.log('\n─── RESPOSTA ───\n');
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const lines = decoder.decode(value).split('\n').filter(l => l.startsWith('data: ') && !l.includes('[DONE]'));
-      for (const line of lines) {
-        try {
-          const data = JSON.parse(line.slice(6));
-          process.stdout.write(data.choices?.[0]?.delta?.content ?? '');
-        } catch {}
-      }
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    for (const line of decoder.decode(value).split('\n').filter(l => l.startsWith('data: ') && !l.includes('[DONE]'))) {
+      try {
+        const chunk = JSON.parse(line.slice(6)).choices?.[0]?.delta?.content ?? '';
+        full += chunk;
+        process.stdout.write(chunk);
+      } catch { /* linha incompleta — ignorar */ }
     }
-    console.log('\n');
   }
+  console.log('\n');
+  return full;
 }
 
-async function main() {
+async function sendToAI(prompt: string): Promise<string> {
+  const apiKey = process.env.AI_API_KEY;
+  if (!apiKey) {
+    console.log('\n[Modo offline — AI_API_KEY não configurada]\n\nPrompt gerado:\n\n' + prompt);
+    return '';
+  }
+
+  const provider = process.env.AI_PROVIDER ?? 'anthropic';
+  if (provider === 'anthropic') return streamAnthropic(prompt, apiKey);
+  if (provider === 'openai')    return streamOpenAI(prompt, apiKey);
+  throw new Error(`Provider desconhecido: "${provider}". Use "anthropic" ou "openai".`);
+}
+
+// ─── main ────────────────────────────────────────────────────────────────────
+
+async function main(): Promise<void> {
   console.log('╔══════════════════════════════════════╗');
   console.log('║     GERADOR DE PROMPTS INTELIGENTE   ║');
   console.log('╚══════════════════════════════════════╝\n');
@@ -107,14 +155,22 @@ async function main() {
   const config = answers as PromptConfig;
 
   const engine = new TemplateEngine();
-  const { warnings } = engine.validate(config);
-  if (warnings.length) warnings.forEach(w => console.warn('⚠️  ' + w));
+  const { errors, warnings } = engine.validate(config);
 
-  const generator = new VariationGenerator();
-  const variations = generator.generate(config);
+  if (errors.length) {
+    errors.forEach(e => console.error('✖ ' + e));
+    process.exit(1);
+  }
+  warnings.forEach(w => console.warn('⚠  ' + w));
 
+  const variations = new VariationGenerator().generate(config);
   const chosen = await pickVariation(variations);
-  await sendToAI(chosen);
+  const response = await sendToAI(chosen);
+
+  if (response) {
+    const save = await ask('Exportar prompt + resposta para arquivo? [s/N]');
+    if (save.toLowerCase() === 's') exportPrompt(chosen, response);
+  }
 }
 
-main().catch(console.error);
+main().catch(err => { console.error('Erro fatal:', err.message); process.exit(1); });
