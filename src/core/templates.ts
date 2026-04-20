@@ -52,6 +52,8 @@ const TEMPLATES: Record<Category, (c: PromptConfig) => string> = {
     c.objective && `Critérios: ${c.objective}.`,
     `Formato de saída: ${formatLabel(c.format)}.`,
     c.audience && `Público: ${c.audience}.`,
+    `Tom: ${toneLabel(c.tone)}.`,
+    c.limit && `Limite: ${c.limit}.`,
     c.restrictions?.length && `Restrições: ${c.restrictions.join(', ')}.`,
     c.fewShot && `Exemplo de linha: "${c.fewShot.output}"`,
     c.chainOfThought && 'Antes de gerar a saída, liste os critérios considerados e justifique a inclusão de cada um.',
