@@ -8,7 +8,7 @@ import { PromptConfig } from './core/types';
 const SYSTEM_PROMPT = `Você é um assistente especializado. Responda sempre em Markdown. 
 Seja preciso e objetivo. Se não souber algo, diga explicitamente.`;
 
-async function pickVariation(variations: Record<string, string>): Promise<string> {
+async function pickVariation(variations: { direct: string; contextual: string; chainOfThought: string }): Promise<string> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   const ask = (q: string) => new Promise<string>(res => rl.question(q + '\n> ', res));
 
