@@ -1,74 +1,90 @@
-import * as readline from 'readline';
+import { select, confirm } from '@inquirer/prompts';
+import chalk from 'chalk';
 import { PromptConfig, Category, OutputFormat, Tone } from '../core/types';
+import { CATEGORY_CHOICES, TONE_CHOICES, FORMAT_CHOICES, collectRequired, collectOptional } from './fields';
 
-interface Question {
-  id: keyof PromptConfig | 'restrictions';
-  text: string;
-  type: 'free' | 'choice';
-  options?: string[];
-  map?: readonly string[];
-  optional?: boolean;
+const CATEGORY_LABEL: Record<Category, string>     = Object.fromEntries(CATEGORY_CHOICES.map(c => [c.value, c.name.split('—')[0].trim()])) as Record<Category, string>;
+const TONE_LABEL: Record<Tone, string>             = Object.fromEntries(TONE_CHOICES.map(c => [c.value, c.name.split('—')[0].trim()])) as Record<Tone, string>;
+const FORMAT_LABEL: Record<OutputFormat, string>   = Object.fromEntries(FORMAT_CHOICES.map(c => [c.value, c.name.split('—')[0].trim()])) as Record<OutputFormat, string>;
+
+function display(config: Partial<PromptConfig>): void {
+  const row = (label: string, value: string | undefined) =>
+    console.log(`  ${chalk.dim(label.padEnd(18))} ${value ? chalk.white(value) : chalk.dim('(vazio)')}`);
+
+  console.log('\n' + chalk.bold('─── Configuração atual ───'));
+  row('Tema',          config.theme);
+  row('Ação',          config.action);
+  row('Categoria',     config.category ? CATEGORY_LABEL[config.category] : undefined);
+  row('Público',       config.audience);
+  row('Objetivo',      config.objective);
+  row('Tom',           config.tone ? TONE_LABEL[config.tone] : undefined);
+  row('Formato',       config.format ? FORMAT_LABEL[config.format] : undefined);
+  row('Linguagem',     config.language);
+  row('Limite',        config.limit);
+  row('Restrições',    config.restrictions?.join(', '));
+  row('Few-shot',      config.fewShot ? `"${config.fewShot.input}" → "${config.fewShot.output}"` : undefined);
+  console.log();
 }
 
-const QUESTIONS: Question[] = [
-  { id: 'theme',     text: 'Qual é o tema ou assunto principal?', type: 'free' },
-  { id: 'action',    text: 'Qual verbo descreve a tarefa? (ex: escreva, compare, liste, crie)', type: 'free' },
-  {
-    id: 'category',  text: 'Qual é o objetivo do prompt?', type: 'choice',
-    options: ['Resumo', 'Código', 'Análise', 'Marketing', 'Brainstorming'],
-    map: ['summary', 'code', 'analysis', 'marketing', 'brainstorming'] as const,
-  },
-  { id: 'audience',  text: 'Quem vai consumir a saída?', type: 'free' },
-  { id: 'objective', text: 'Qual o resultado esperado?', type: 'free' },
-  {
-    id: 'tone',      text: 'Qual o tom desejado?', type: 'choice',
-    options: ['Formal', 'Amigável', 'Persuasivo', 'Didático', 'Jornalístico', 'Técnico'],
-    map: ['formal', 'friendly', 'persuasive', 'didactic', 'journalistic', 'technical'] as const,
-  },
-  {
-    id: 'format',    text: 'Qual o formato de saída?', type: 'choice',
-    options: ['Markdown', 'JSON', 'Tabela', 'Lista numerada', 'Texto corrido', 'HTML', 'Código'],
-    map: ['markdown', 'json', 'table', 'numbered-list', 'prose', 'html', 'code'] as const,
-  },
-  { id: 'language',     text: 'Linguagem de programação? (só para código) — Enter para pular', type: 'free', optional: true },
-  { id: 'limit',        text: 'Limite de tamanho? (ex: 200 palavras, 5 itens) — Enter para pular', type: 'free', optional: true },
-  { id: 'restrictions', text: 'Restrições? (ex: sem jargão, sem libs externas) — Enter para pular', type: 'free', optional: true },
-];
+type ReviewAction = 'confirm' | 'edit-required' | 'edit-optional' | 'restart' | 'cancel';
 
-/**
- * Conduz o fluxo de perguntas interativo no terminal.
- * Retorna um PromptConfig parcial com as respostas do usuário.
- */
-export async function runQuestionFlow(): Promise<Partial<PromptConfig>> {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  const ask = (prompt: string) => new Promise<string>(res => rl.question(prompt + '\n> ', res));
-  const answers: Partial<PromptConfig> = {};
+async function reviewMenu(config: Partial<PromptConfig>): Promise<ReviewAction> {
+  display(config);
+  return select<ReviewAction>({
+    message: chalk.cyan('O que deseja fazer?'),
+    choices: [
+      { value: 'confirm',       name: chalk.green('✔  Confirmar e continuar') },
+      { value: 'edit-required', name: 'Editar campos obrigatórios' },
+      { value: 'edit-optional', name: 'Editar campos opcionais' },
+      { value: 'restart',       name: chalk.yellow('↺  Recomeçar do zero') },
+      { value: 'cancel',        name: chalk.red('✖  Cancelar') },
+    ],
+  });
+}
 
-  for (const q of QUESTIONS) {
-    if (q.type === 'choice' && q.options && q.map) {
-      console.log('\n' + q.text);
-      q.options.forEach((opt, i) => console.log(`  [${i + 1}] ${opt}`));
+export async function runQuestionFlow(initial: Partial<PromptConfig> = {}): Promise<Partial<PromptConfig>> {
+  console.log(chalk.dim('\n  Use ↑↓ para navegar, Enter para confirmar.\n'));
 
-      let idx = -1;
-      while (idx < 0 || idx >= q.options.length) {
-        const raw = (await ask('')).trim();
-        idx = parseInt(raw, 10) - 1;
-        if (isNaN(idx) || idx < 0 || idx >= q.options.length) {
-          console.log(`  ⚠ Escolha entre 1 e ${q.options.length}.`);
-          idx = -1;
-        }
-      }
-      (answers as Record<string, unknown>)[q.id] = q.map[idx];
+  let config: Partial<PromptConfig> = { ...initial };
 
-    } else {
-      const raw = (await ask('\n' + q.text)).trim();
-      if (raw) {
-        (answers as Record<string, unknown>)[q.id] =
-          q.id === 'restrictions' ? raw.split(',').map(s => s.trim()) : raw;
+  // Primeira passagem completa
+  const required = await collectRequired(config);
+  config = { ...config, ...required };
+  const optional = await collectOptional(config, config.category!);
+  config = { ...config, ...optional };
+
+  // Loop de revisão
+  while (true) {
+    const action = await reviewMenu(config);
+
+    if (action === 'confirm') return config;
+
+    if (action === 'cancel') throw new Error('Execução cancelada pelo usuário.');
+
+    if (action === 'restart') {
+      config = {};
+      const r = await collectRequired(config);
+      config = { ...r };
+      const o = await collectOptional(config, config.category!);
+      config = { ...config, ...o };
+      continue;
+    }
+
+    if (action === 'edit-required') {
+      const r = await collectRequired(config);
+      // Se categoria mudou, re-coleta opcionais para ajustar contexto de language
+      if (r.category !== config.category) {
+        config = { ...config, ...r };
+        const o = await collectOptional(config, config.category!);
+        config = { ...config, ...o };
+      } else {
+        config = { ...config, ...r };
       }
     }
-  }
 
-  rl.close();
-  return answers;
+    if (action === 'edit-optional') {
+      const o = await collectOptional(config, config.category!);
+      config = { ...config, ...o };
+    }
+  }
 }

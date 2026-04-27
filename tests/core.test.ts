@@ -3,6 +3,7 @@ import { VariationGenerator } from '../src/core/variations';
 import { RetryManager } from '../src/core/retry';
 import { formatLabel, toneLabel } from '../src/core/templates';
 import { PromptConfig } from '../src/core/types';
+import { parseArgs } from '../src/cli/args';
 
 /** Config completa e válida reutilizada nos testes. */
 const BASE: PromptConfig = {
@@ -119,6 +120,12 @@ describe('TemplateEngine.fill', () => {
     expect(p).toContain('| React | Alta |');
   });
 
+  it('omite placeholders da variação direta quando audience/objective são "-"', () => {
+    const p = engine.fill({ ...BASE, audience: '-', objective: '-' });
+    expect(p).not.toContain('Público-alvo: -.');
+    expect(p).not.toContain('Objetivo: -.');
+  });
+
   it('inclui instrução CoT quando chainOfThought:true', () => {
     expect(engine.fill({ ...BASE, chainOfThought: true })).toMatch(/critérios|raciocínio|justifique/i);
   });
@@ -140,16 +147,37 @@ describe('TemplateEngine.fill', () => {
     spy.mockRestore();
   });
 
-  it('gera prompt para todas as 5 categorias sem lançar erro', () => {
-    const categories = ['summary', 'code', 'analysis', 'marketing', 'brainstorming'] as const;
+  it('gera prompt para todas as 8 categorias sem lançar erro', () => {
+    const categories = ['summary', 'code', 'analysis', 'marketing', 'brainstorming', 'translation', 'qa', 'creative'] as const;
     for (const category of categories) {
       expect(() => engine.fill({ ...BASE, category })).not.toThrow();
     }
   });
 
+  it('template translation inclui idioma de destino', () => {
+    const p = engine.fill({ ...BASE, category: 'translation', language: 'Inglês' });
+    expect(p).toContain('Inglês');
+  });
+
+  it('template qa inclui critério de qualidade', () => {
+    const p = engine.fill({ ...BASE, category: 'qa', objective: 'cobertura de edge cases' });
+    expect(p).toContain('cobertura de edge cases');
+  });
+
+  it('template creative inclui intenção criativa', () => {
+    const p = engine.fill({ ...BASE, category: 'creative', objective: 'provocar reflexão' });
+    expect(p).toContain('provocar reflexão');
+  });
+
   it('template code usa language quando fornecido', () => {
     const p = engine.fill({ ...BASE, category: 'code', format: 'code', language: 'Python' });
     expect(p).toContain('Python');
+  });
+
+  it('template marketing inclui formato de saída real', () => {
+    const p = engine.fill({ ...BASE, category: 'marketing', format: 'html', limit: '2 blocos' });
+    expect(p).toContain('Formato de saída: HTML semântico.');
+    expect(p).toContain('Limite: 2 blocos.');
   });
 });
 
@@ -174,10 +202,17 @@ describe('VariationGenerator.generate', () => {
     const r = gen.generate({ ...BASE, audience: 'gestor de produto', objective: 'decisão de compra' });
     expect(r.direct).not.toContain('gestor de produto');
     expect(r.direct).not.toContain('decisão de compra');
+    expect(r.direct).not.toContain('Público: -.');
+    expect(r.direct).not.toContain('Critérios: -.');
   });
 
   it('variação chainOfThought contém instrução de raciocínio', () => {
     expect(gen.generate(BASE).chainOfThought).toMatch(/critérios|raciocínio|justifique/i);
+  });
+
+  it('variação chainOfThought de category:code NÃO contém instrução CoT', () => {
+    const codeConfig: PromptConfig = { ...BASE, category: 'code', format: 'code', language: 'TypeScript' };
+    expect(gen.generate(codeConfig).chainOfThought).not.toMatch(/justifique|raciocínio|critérios/i);
   });
 
   it('variação contextual não contém instrução CoT', () => {
@@ -189,6 +224,36 @@ describe('VariationGenerator.generate', () => {
     expect(r.direct).toContain('React vs Vue');
     expect(r.contextual).toContain('React vs Vue');
     expect(r.chainOfThought).toContain('React vs Vue');
+  });
+});
+
+// ─── parseArgs ───────────────────────────────────────────────────────────────
+
+describe('parseArgs', () => {
+  it('reconhece flags parciais como entrada CLI sem marcar config completa', () => {
+    const parsed = parseArgs(['node', 'cli', '--theme', 'JWT']);
+    expect(parsed.hasCliInput).toBe(true);
+    expect(parsed.isComplete).toBe(false);
+    expect(parsed.config.theme).toBe('JWT');
+  });
+
+  it('marca config completa quando todos os obrigatórios são informados', () => {
+    const parsed = parseArgs([
+      'node', 'cli',
+      '--theme', 'JWT',
+      '--action', 'escreva',
+      '--category', 'code',
+      '--audience', 'backend',
+      '--objective', 'validar token',
+      '--tone', 'technical',
+      '--format', 'code',
+    ]);
+    expect(parsed.isComplete).toBe(true);
+  });
+
+  it('respeita a flag --interactive', () => {
+    const parsed = parseArgs(['node', 'cli', '--interactive', '--theme', 'JWT']);
+    expect(parsed.forceInteractive).toBe(true);
   });
 });
 
@@ -244,5 +309,104 @@ describe('RetryManager', () => {
       rm.execute(async () => { calls++; throw new Error('network'); })
     ).rejects.toThrow('network');
     expect(calls).toBe(3);
+  });
+});
+
+// ─── collectRequired / collectOptional ───────────────────────────────────────
+
+jest.mock('@inquirer/prompts', () => ({
+  input:   jest.fn(),
+  select:  jest.fn(),
+  confirm: jest.fn(),
+}));
+
+import { input, select, confirm } from '@inquirer/prompts';
+import { collectRequired, collectOptional } from '../src/cli/fields';
+
+const mockInput   = input   as jest.MockedFunction<typeof input>;
+const mockSelect  = select  as jest.MockedFunction<typeof select>;
+const mockConfirm = confirm as jest.MockedFunction<typeof confirm>;
+
+describe('collectRequired', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('retorna os 7 campos obrigatórios com os valores fornecidos', async () => {
+    mockInput
+      .mockResolvedValueOnce('React vs Vue')   // theme
+      .mockResolvedValueOnce('compare');        // action
+    mockSelect
+      .mockResolvedValueOnce('analysis')        // category
+      .mockResolvedValueOnce('technical')       // tone
+      .mockResolvedValueOnce('table');          // format
+    mockInput
+      .mockResolvedValueOnce('dev sênior')      // audience
+      .mockResolvedValueOnce('escolha de stack'); // objective
+
+    const result = await collectRequired({});
+    expect(result.theme).toBe('React vs Vue');
+    expect(result.action).toBe('compare');
+    expect(result.category).toBe('analysis');
+    expect(result.tone).toBe('technical');
+    expect(result.format).toBe('table');
+    expect(result.audience).toBe('dev sênior');
+    expect(result.objective).toBe('escolha de stack');
+  });
+
+  it('usa valores de initial como default', async () => {
+    mockInput.mockResolvedValue('');
+    mockSelect.mockResolvedValue('summary');
+
+    await collectRequired({ theme: 'JWT', category: 'code' });
+
+    // Verifica que o default foi passado para o primeiro input (theme)
+    expect(mockInput).toHaveBeenCalledWith(expect.objectContaining({ default: 'JWT' }));
+  });
+});
+
+describe('collectOptional', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('retorna language e limit quando preenchidos', async () => {
+    mockInput
+      .mockResolvedValueOnce('TypeScript')  // language
+      .mockResolvedValueOnce('300 linhas'); // limit
+    mockInput.mockResolvedValueOnce('');    // restrictions
+    mockConfirm.mockResolvedValueOnce(false); // sem few-shot
+
+    const result = await collectOptional({}, 'code');
+    expect(result.language).toBe('TypeScript');
+    expect(result.limit).toBe('300 linhas');
+    expect(result.fewShot).toBeUndefined();
+  });
+
+  it('retorna fewShot quando confirmado', async () => {
+    mockInput.mockResolvedValueOnce('').mockResolvedValueOnce(''); // language, limit
+    mockInput.mockResolvedValueOnce('');                           // restrictions
+    mockConfirm.mockResolvedValueOnce(true);                       // quer few-shot
+    mockInput
+      .mockResolvedValueOnce('entrada de exemplo')
+      .mockResolvedValueOnce('saída de exemplo');
+
+    const result = await collectOptional({}, 'analysis');
+    expect(result.fewShot).toEqual({ input: 'entrada de exemplo', output: 'saída de exemplo' });
+  });
+
+  it('retorna restrictions como array', async () => {
+    mockInput.mockResolvedValueOnce('').mockResolvedValueOnce(''); // language, limit
+    mockInput.mockResolvedValueOnce('sem jargão, sem libs externas');
+    mockConfirm.mockResolvedValueOnce(false);
+
+    const result = await collectOptional({}, 'summary');
+    expect(result.restrictions).toEqual(['sem jargão', 'sem libs externas']);
+  });
+
+  it('adapta mensagem de language para category:translation', async () => {
+    mockInput.mockResolvedValue('');
+    mockConfirm.mockResolvedValueOnce(false);
+
+    await collectOptional({}, 'translation');
+
+    const firstCall = mockInput.mock.calls[0][0] as { message: string };
+    expect(firstCall.message).toMatch(/idioma de destino/i);
   });
 });

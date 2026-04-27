@@ -1,31 +1,67 @@
-# Gerador de Prompts Inteligente
+# Prompt Generator
 
-CLI interativo que transforma uma ideia simples em prompts estruturados e eficientes para LLMs (ChatGPT, Claude, Gemini).
+CLI interativa para criar, revisar e executar prompts estruturados para LLMs como ChatGPT, Claude e Gemini.
 
-## Instalação
+## Uso Imediato
 
 ```bash
 npm install
+npm start
 ```
 
-## Uso
+Se for sua primeira vez, siga [docs/inicio-rapido.md](/home/redsec/Ambiente/prompt-generator/docs/inicio-rapido.md).
+
+## O Que o Programa Faz
+
+- guia o preenchimento do prompt por wizard;
+- permite uso total por flags;
+- suporta modo híbrido;
+- gera 3 variações de prompt;
+- pode enviar para Anthropic ou OpenAI;
+- pode rodar em modo offline;
+- exporta prompt e resposta para Markdown.
+
+## Exemplo Rápido
 
 ```bash
-# Com API configurada
-cp .env.example .env   # preencha AI_API_KEY
-npm start
-
-# Modo offline (gera o prompt sem enviar à API)
-npm start
+npm start -- \
+  --theme "JWT no Express" \
+  --action "escreva" \
+  --category code \
+  --audience "dev backend" \
+  --objective "validar token em rotas protegidas" \
+  --tone technical \
+  --format code \
+  --language TypeScript
 ```
 
-## Fluxo
+## Trilhas de Leitura
 
-1. Responda as perguntas guiadas (tema, categoria, público, tom, formato)
-2. Escolha entre 3 variações geradas: **direta**, **contextualizada** ou **chain-of-thought**
-3. O prompt é enviado à API e a resposta aparece em streaming
+### Iniciante
 
-## Categorias suportadas
+- [Início Rápido](/home/redsec/Ambiente/prompt-generator/docs/inicio-rapido.md)
+
+### Uso do dia a dia
+
+- [Guia Básico](/home/redsec/Ambiente/prompt-generator/docs/guia-basico.md)
+
+### Uso completo
+
+- [Guia Avançado](/home/redsec/Ambiente/prompt-generator/docs/guia-avancado.md)
+
+### Receitas prontas
+
+- [Exemplos Práticos](/home/redsec/Ambiente/prompt-generator/docs/exemplos-praticos.md)
+
+### Consulta rápida
+
+- [Cheatsheet](/home/redsec/Ambiente/prompt-generator/docs/CHEATSHEET.md)
+
+### Referência técnica
+
+- [Referência Técnica](/home/redsec/Ambiente/prompt-generator/docs/referencia-tecnica.md)
+
+## Categorias Suportadas
 
 | Categoria | Uso |
 |---|---|
@@ -34,11 +70,14 @@ npm start
 | Análise | Comparações e avaliações |
 | Marketing | Copywriting e campanhas |
 | Brainstorming | Geração de ideias |
+| Tradução | Tradução contextualizada |
+| Q&A | Perguntas e respostas |
+| Criativo | Escrita criativa |
 
-## Variáveis de ambiente
+## Configuração de Ambiente
 
-Veja `.env.example`. Sem `AI_API_KEY`, o sistema roda em modo offline e exibe o prompt gerado.
+```bash
+cp .env.example .env
+```
 
-## Documentação
-
-Ver pasta `docs/` para os fundamentos, categorias, template modular, arquitetura e melhores práticas.
+Sem `AI_API_KEY`, o sistema funciona em modo offline.

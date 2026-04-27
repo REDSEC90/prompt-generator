@@ -1,4 +1,12 @@
-export type Category = 'summary' | 'code' | 'analysis' | 'marketing' | 'brainstorming';
+export type Category =
+  | 'summary'
+  | 'code'
+  | 'analysis'
+  | 'marketing'
+  | 'brainstorming'
+  | 'translation'
+  | 'qa'
+  | 'creative';
 
 export type OutputFormat =
   | 'markdown'

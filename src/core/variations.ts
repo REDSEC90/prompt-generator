@@ -22,7 +22,8 @@ export class VariationGenerator {
 
     const contextual = this.engine.fill({ ...config, chainOfThought: false });
 
-    const cot = this.engine.fill({ ...config, chainOfThought: true });
+    // CoT prejudica geração de código — desativado explicitamente
+    const cot = this.engine.fill({ ...config, chainOfThought: config.category !== 'code' });
 
     return { direct, contextual, chainOfThought: cot };
   }

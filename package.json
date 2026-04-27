@@ -11,10 +11,19 @@
   },
   "jest": {
     "preset": "ts-jest",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^chalk$": "<rootDir>/tests/__mocks__/chalk.js"
+    },
+    "transformIgnorePatterns": [
+      "node_modules/(?!(@inquirer|ora)/)"
+    ]
   },
   "dependencies": {
-    "dotenv": "^16.0.0"
+    "@inquirer/prompts": "^8.4.2",
+    "chalk": "^5.6.2",
+    "dotenv": "^16.0.0",
+    "ora": "^9.4.0"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
