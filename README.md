@@ -81,3 +81,4 @@ cp .env.example .env
 ```
 
 Sem `AI_API_KEY`, o sistema funciona em modo offline.
+# prompt-generator
