@@ -60,6 +60,7 @@ npm start -- \
 ### Referência técnica
 
 - [Referência Técnica](/home/redsec/Ambiente/prompt-generator/docs/referencia-tecnica.md)
+- [Fine-tuning do Llama (Ollama + dataset)](/home/redsec/Ambiente/prompt-generator/docs/llama-finetuning.md)
 
 ## Categorias Suportadas
 

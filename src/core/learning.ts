@@ -1,11 +1,25 @@
 import { PromptConfig, Category } from './types';
 
+// Tarefa 1.3 — Motivo da falha para prompts com rating <= 2
+export type FailureReason =
+  | 'too_vague'        // prompt sem contexto suficiente
+  | 'wrong_format'     // formato de saída inadequado
+  | 'wrong_tone'       // tom não adequado ao público
+  | 'missing_context'  // faltou role ou restrições
+  | 'too_long'         // prompt gerou resposta excessiva
+  | 'hallucinated';    // IA inventou informações
+
 export interface PromptFeedback {
   config: PromptConfig;
+  generatedPrompt: string;                              // texto exato do prompt usado
   rating: 1 | 2 | 3 | 4 | 5;
   usedVariation: 'direct' | 'contextual' | 'chainOfThought';
+  failureReason?: FailureReason;                        // preenchido quando rating <= 2
   timestamp: number;
 }
+
+// Tarefa 2.4 — Score de confiança baseado no volume de amostras
+export type ConfidenceLevel = 'low' | 'medium' | 'high';
 
 export interface LearningInsight {
   category: Category;
@@ -13,6 +27,7 @@ export interface LearningInsight {
   avgRating: number;
   totalSamples: number;
   suggestions: string[];
+  confidence: ConfidenceLevel;  // low < 10, medium < 50, high >= 50
 }
 
 /**
@@ -45,12 +60,17 @@ export class LearningEngine {
       const bestVariation = this.bestKey(avgByVariation);
       const avgRating = samples.reduce((s, f) => s + f.rating, 0) / samples.length;
 
+      const confidence: ConfidenceLevel =
+        samples.length < 10 ? 'low' :
+        samples.length < 50 ? 'medium' : 'high';
+
       insights.push({
         category,
         bestVariation,
         avgRating: parseFloat(avgRating.toFixed(2)),
         totalSamples: samples.length,
         suggestions: this.buildSuggestions(samples, avgByVariation, avgRating),
+        confidence,
       });
     }
 

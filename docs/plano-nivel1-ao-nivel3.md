@@ -439,12 +439,13 @@ print("Fine-tuning concluído.")
 
 ```bash
 # Converter para GGUF (formato Ollama)
-pip install llama-cpp-python
-python -m llama_cpp.server --model ./prompt-generator-model
+# O fine-tuning gera uma pasta Hugging Face em ./prompt-generator-model.
+# Para servir via Ollama, converta para um arquivo GGUF e salve como:
+#   ./prompt-generator-model.gguf
 
 # OU usar Ollama com Modelfile
 cat > Modelfile << 'EOF'
-FROM ./prompt-generator-model
+FROM ./prompt-generator-model.gguf
 SYSTEM "Você é um especialista em engenharia de prompts."
 EOF
 

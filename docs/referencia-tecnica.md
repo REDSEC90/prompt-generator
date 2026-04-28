@@ -301,8 +301,16 @@ src/core/ai.ts
 
 Providers suportados:
 
+- Ollama (local, padrão)
 - Anthropic
 - OpenAI
+
+### Ollama
+
+- endpoint: `http://localhost:11434/api/generate` (configurável via `OLLAMA_HOST`)
+- sem API key
+- timeout configurável via `OLLAMA_TIMEOUT` (padrão: 60000ms)
+- usa `AbortController` para não travar indefinidamente
 
 ### Anthropic
 
@@ -346,25 +354,77 @@ Retenta em:
 - `503`
 - `504`
 
-## 7. Variáveis de ambiente
+## 7. Geração via IA (meta-prompt)
+
+Arquivo:
 
 ```text
-AI_PROVIDER
-AI_API_KEY
-AI_MODEL
-AI_MAX_TOKENS
+src/core/generator.ts
 ```
 
-Valores padrão relevantes:
+### `generatePrompt(goal, examples?)`
 
-- `AI_PROVIDER=anthropic`
-- `AI_MAX_TOKENS=4000`
+- Usa a própria IA para gerar o prompt a partir de um objetivo em linguagem natural.
+- Inclui até 3 exemplos few-shot do histórico com rating ≥ 4.
+- Ativado via `--ai-generate "objetivo"` na CLI.
 
-Sem `AI_API_KEY`:
+### `rewritePrompt(original, failureReason)`
 
-- o sistema entra em modo offline.
+- Reescreve automaticamente prompts com rating ≤ 2.
+- Usa o motivo da falha (`FailureReason`) para orientar a correção.
+- Chamado automaticamente após feedback ruim no fluxo principal.
 
-## 8. Decisões de design
+## 8. Persistência e aprendizado
+
+### FeedbackStore
+
+Arquivo:
+
+```text
+src/core/store.ts
+```
+
+- Persiste em `~/.prompt-generator/history.json`.
+- Limite de 10.000 entradas (remove as mais antigas).
+- Métodos: `load`, `save`, `clear`, `stats`, `loadByCategory`.
+
+### LearningEngine
+
+Arquivo:
+
+```text
+src/core/learning.ts
+```
+
+- `analyze(history)` — retorna insights por categoria com `confidence` (low/medium/high).
+- `suggest(config, history)` — retorna patch de config baseado no histórico.
+- Aplicado automaticamente ao config antes do wizard.
+
+### Exportação de dataset
+
+Arquivo:
+
+```text
+src/core/dataset.ts
+```
+
+- Exporta feedbacks com rating ≥ minRating no formato JSONL Alpaca.
+- Comando: `npm run export-dataset [outputPath] [minRating]`
+
+## 9. Variáveis de ambiente
+
+```text
+AI_PROVIDER        # ollama | anthropic | openai  (padrão: anthropic)
+AI_API_KEY         # obrigatório para anthropic/openai
+AI_MODEL           # modelo específico do provider
+AI_MAX_TOKENS      # padrão: 4000 (Anthropic)
+OLLAMA_HOST        # padrão: http://localhost:11434
+OLLAMA_TIMEOUT     # padrão: 60000 (ms)
+```
+
+Sem `AI_API_KEY` com provider anthropic/openai: modo offline.
+
+## 10. Decisões de design
 
 ### Por que 3 variações
 
@@ -382,8 +442,12 @@ Sem `AI_API_KEY`:
 - para evitar desperdício de tokens;
 - para reduzir ruído no prompt final.
 
+### Por que CoT desativado em `code` e `qa`
+
+- `code`: CoT gera raciocínio em vez de código funcional.
+- `qa`: CoT gera justificativas em vez de pares pergunta/resposta diretos.
+
 ## Limites atuais
 
-- `chainOfThought` ainda não tem efeito relevante em `code`;
-- o fluxo interativo ainda concentra bastante lógica em `questions.ts`;
-- a camada CLI ainda merece testes mais profundos.
+- Fine-tuning (Fase 3) requer 200+ feedbacks com rating ≥ 4 e GPU para treino.
+- Conversão para GGUF é manual (ver `docs/llama-finetuning.md`).

@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import { PromptConfig, Category, OutputFormat, Tone } from '../core/types';
 
 const HELP = `
@@ -29,6 +30,7 @@ Flags opcionais:
   --few-shot-input   Entrada do exemplo few-shot
   --few-shot-output  Saída do exemplo few-shot
   --variation   1 (direta) | 2 (contextual) | 3 (chain-of-thought)  [padrão: interativo]
+  --ai-generate "objetivo"  Modo IA generativa: gera o prompt via meta-prompt + few-shot
   --interactive Força o wizard interativo, mesmo com flags completas
   --no-send     Apenas exibe o prompt, não envia à API
   --export      Exporta automaticamente sem perguntar
@@ -54,6 +56,7 @@ export interface ParsedArgs {
   hasCliInput: boolean;
   forceInteractive: boolean;
   isComplete: boolean;
+  aiGenerate?: string;   // --ai-generate "objetivo": modo IA generativa (Tarefa 2.1)
 }
 
 export function parseArgs(argv: string[]): ParsedArgs {
@@ -83,7 +86,25 @@ export function parseArgs(argv: string[]): ParsedArgs {
   const fewIn      = get('--few-shot-input');
   const fewOut     = get('--few-shot-output');
   const variation  = get('--variation') as '1' | '2' | '3' | undefined;
+  const aiGenerate = get('--ai-generate');
   const forceInteractive = args.includes('--interactive');
+
+  const VALID_CATEGORIES = ['summary','code','analysis','marketing','brainstorming','translation','qa','creative'];
+  const VALID_TONES      = ['formal','friendly','persuasive','didactic','journalistic','technical'];
+  const VALID_FORMATS    = ['markdown','json','table','numbered-list','prose','html','code'];
+
+  if (category && !VALID_CATEGORIES.includes(category)) {
+    console.error(chalk.red(`✖ --category inválida: "${category}". Valores aceitos: ${VALID_CATEGORIES.join(', ')}`));
+    process.exit(1);
+  }
+  if (tone && !VALID_TONES.includes(tone)) {
+    console.error(chalk.red(`✖ --tone inválido: "${tone}". Valores aceitos: ${VALID_TONES.join(', ')}`));
+    process.exit(1);
+  }
+  if (format && !VALID_FORMATS.includes(format)) {
+    console.error(chalk.red(`✖ --format inválido: "${format}". Valores aceitos: ${VALID_FORMATS.join(', ')}`));
+    process.exit(1);
+  }
 
   if (theme)        config.theme       = theme;
   if (action)       config.action      = action;
@@ -112,5 +133,6 @@ export function parseArgs(argv: string[]): ParsedArgs {
     hasCliInput,
     forceInteractive,
     isComplete,
+    aiGenerate,
   };
 }

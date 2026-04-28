@@ -1,0 +1,25 @@
+# Modelfile — modelo fine-tunado para geração de prompts
+#
+# Uso:
+#   ollama create prompt-generator -f training/Modelfile
+#   ollama run prompt-generator
+#
+# Após criar, atualize o .env:
+#   AI_PROVIDER=ollama
+#   AI_MODEL=prompt-generator
+#
+# Pré-requisito: executar finetune.py e converter o modelo para GGUF.
+# O fine-tuning (Unsloth/trl) gera uma pasta Hugging Face em `./prompt-generator-model`,
+# mas o Ollama precisa de um arquivo `.gguf` para servir localmente.
+# Coloque o GGUF final em `./prompt-generator-model.gguf`.
+
+FROM ./prompt-generator-model.gguf
+
+SYSTEM """Você é um especialista em engenharia de prompts para LLMs.
+Sua função é gerar prompts precisos, bem estruturados e eficazes.
+Cada prompt deve incluir: role, contexto, tarefa, formato de saída e critério de qualidade.
+Responda sempre em Markdown. Se não souber algo com certeza, diga explicitamente."""
+
+PARAMETER temperature 0.7
+PARAMETER top_p 0.9
+PARAMETER num_predict 1024

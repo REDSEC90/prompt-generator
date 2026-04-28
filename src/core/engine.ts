@@ -28,8 +28,8 @@ export class TemplateEngine {
       }
     }
 
-    if (config.category === 'code' && !config.language && !config.theme) {
-      errors.push('Categoria "code" requer "language" ou "theme" com a linguagem.');
+    if (config.category === 'code' && !config.language) {
+      warnings.push('Categoria "code": informe "language" para um prompt mais preciso.');
     }
 
     const incompatible = INCOMPATIBLE[config.format] ?? [];

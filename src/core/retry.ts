@@ -20,7 +20,8 @@ export class RetryManager {
         lastError = err;
         const status: number | undefined = err?.status ?? err?.response?.status;
 
-        // Erros 4xx (exceto 429) não devem ser retentados
+        // Não retentar: erros 4xx (exceto 429) e AbortError (timeout)
+        if (err?.name === 'AbortError') throw err;
         if (status && status >= 400 && status < 500 && status !== 429) throw err;
 
         if (attempt < this.maxRetries) {

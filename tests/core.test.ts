@@ -255,6 +255,50 @@ describe('parseArgs', () => {
     const parsed = parseArgs(['node', 'cli', '--interactive', '--theme', 'JWT']);
     expect(parsed.forceInteractive).toBe(true);
   });
+
+  it('--no-send define noSend=true', () => {
+    const parsed = parseArgs(['node', 'cli', '--no-send', '--theme', 'JWT']);
+    expect(parsed.noSend).toBe(true);
+  });
+
+  it('--export define autoExport=true', () => {
+    const parsed = parseArgs(['node', 'cli', '--export']);
+    expect(parsed.autoExport).toBe(true);
+  });
+
+  it('--few-shot-input e --few-shot-output montam fewShot', () => {
+    const parsed = parseArgs(['node', 'cli',
+      '--few-shot-input', 'entrada', '--few-shot-output', 'saída']);
+    expect(parsed.config.fewShot).toEqual({ input: 'entrada', output: 'saída' });
+  });
+
+  it('--ai-generate captura o objetivo', () => {
+    const parsed = parseArgs(['node', 'cli', '--ai-generate', 'criar endpoint JWT']);
+    expect(parsed.aiGenerate).toBe('criar endpoint JWT');
+  });
+
+  it('--restrictions converte para array', () => {
+    const parsed = parseArgs(['node', 'cli', '--restrictions', 'sem jargão,sem libs']);
+    expect(parsed.config.restrictions).toEqual(['sem jargão', 'sem libs']);
+  });
+
+  it('--category inválida chama process.exit(1)', () => {
+    const exit = jest.spyOn(process, 'exit').mockImplementation(() => { throw new Error('exit'); });
+    expect(() => parseArgs(['node', 'cli', '--category', 'invalida'])).toThrow('exit');
+    exit.mockRestore();
+  });
+
+  it('--tone inválido chama process.exit(1)', () => {
+    const exit = jest.spyOn(process, 'exit').mockImplementation(() => { throw new Error('exit'); });
+    expect(() => parseArgs(['node', 'cli', '--tone', 'invalido'])).toThrow('exit');
+    exit.mockRestore();
+  });
+
+  it('--format inválido chama process.exit(1)', () => {
+    const exit = jest.spyOn(process, 'exit').mockImplementation(() => { throw new Error('exit'); });
+    expect(() => parseArgs(['node', 'cli', '--format', 'invalido'])).toThrow('exit');
+    exit.mockRestore();
+  });
 });
 
 // ─── RetryManager ────────────────────────────────────────────────────────────

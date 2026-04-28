@@ -27,6 +27,7 @@
 ### Quero entender o funcionamento interno
 
 - [Referência Técnica](referencia-tecnica.md)
+- [Fine-tuning do Llama (Ollama + dataset)](llama-finetuning.md)
 
 ## Ordem recomendada
 

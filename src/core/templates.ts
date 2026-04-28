@@ -1,5 +1,17 @@
 import { Category, OutputFormat, PromptConfig } from './types';
 
+// ── Tarefa 1.5 — Role prompting por categoria ─────────────────────────────────
+const ROLES: Record<Category, string> = {
+  summary:       'especialista em síntese de conteúdo',
+  code:          'engenheiro de software sênior',
+  analysis:      'analista estratégico',
+  marketing:     'copywriter especializado em conversão',
+  brainstorming: 'consultor de inovação',
+  translation:   'tradutor técnico especializado',
+  qa:            'especialista em qualidade de software',
+  creative:      'escritor criativo profissional',
+};
+
 export function formatLabel(format: OutputFormat): string {
   const map: Record<OutputFormat, string> = {
     markdown:       'Markdown com seções H2 e bullet points',
@@ -42,6 +54,7 @@ function hasRestrictions(c: PromptConfig): string | false {
 
 const TEMPLATES: Record<Category, (c: PromptConfig) => string> = {
   summary: (c) => lines(
+    `Você é um ${ROLES[c.category]}.`,
     `Crie um resumo sobre ${c.theme}.`,
     `Formato de saída: ${formatLabel(c.format)}.`,
     meaningful(c.audience)  && `Público-alvo: ${meaningful(c.audience)}.`,
@@ -54,6 +67,7 @@ const TEMPLATES: Record<Category, (c: PromptConfig) => string> = {
   ),
 
   code: (c) => lines(
+    `Você é um ${ROLES[c.category]}.`,
     `Escreva ${c.action} em ${c.language ?? c.theme}.`,
     meaningful(c.objective) && `Descrição funcional: ${meaningful(c.objective)}.`,
     `Saída esperada: código funcional + docstring + testes unitários.`,
@@ -66,6 +80,7 @@ const TEMPLATES: Record<Category, (c: PromptConfig) => string> = {
   ),
 
   analysis: (c) => lines(
+    `Você é um ${ROLES[c.category]}.`,
     `${c.action} ${c.theme}.`,
     meaningful(c.objective) && `Critérios: ${meaningful(c.objective)}.`,
     `Formato de saída: ${formatLabel(c.format)}.`,
@@ -78,6 +93,7 @@ const TEMPLATES: Record<Category, (c: PromptConfig) => string> = {
   ),
 
   marketing: (c) => lines(
+    `Você é um ${ROLES[c.category]}.`,
     `Crie ${c.action} para ${c.theme}.`,
     meaningful(c.audience) && `Público-alvo: ${meaningful(c.audience)}.`,
     meaningful(c.objective) && `Objetivo: ${meaningful(c.objective)}.`,
@@ -89,6 +105,7 @@ const TEMPLATES: Record<Category, (c: PromptConfig) => string> = {
   ),
 
   brainstorming: (c) => lines(
+    `Você é um ${ROLES[c.category]}.`,
     `Gere ${c.action} no nicho de ${c.theme}.`,
     meaningful(c.objective) && `Cada ideia deve conter: ${meaningful(c.objective)}.`,
     c.limit       && `Quantidade: ${c.limit}.`,
@@ -98,6 +115,7 @@ const TEMPLATES: Record<Category, (c: PromptConfig) => string> = {
   ),
 
   translation: (c) => lines(
+    `Você é um ${ROLES[c.category]}.`,
     `Traduza o seguinte conteúdo sobre ${c.theme}.`,
     meaningful(c.language) && `Idioma de destino: ${meaningful(c.language)}.`,
     meaningful(c.objective) && `Contexto: ${meaningful(c.objective)}.`,
@@ -110,6 +128,7 @@ const TEMPLATES: Record<Category, (c: PromptConfig) => string> = {
   ),
 
   qa: (c) => lines(
+    `Você é um ${ROLES[c.category]}.`,
     `Gere ${c.action} sobre ${c.theme}.`,
     meaningful(c.objective) && `Critério de qualidade: ${meaningful(c.objective)}.`,
     `Formato de saída: ${formatLabel(c.format)}.`,
@@ -122,6 +141,7 @@ const TEMPLATES: Record<Category, (c: PromptConfig) => string> = {
   ),
 
   creative: (c) => lines(
+    `Você é um ${ROLES[c.category]}.`,
     `${c.action} sobre ${c.theme}.`,
     meaningful(c.objective) && `Intenção criativa: ${meaningful(c.objective)}.`,
     `Tom: ${toneLabel(c.tone)}.`,

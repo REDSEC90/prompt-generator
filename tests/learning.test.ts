@@ -16,7 +16,7 @@ function fb(
   rating: PromptFeedback['rating'],
   usedVariation: PromptFeedback['usedVariation'],
 ): PromptFeedback {
-  return { config: { ...BASE, ...overrides }, rating, usedVariation, timestamp: Date.now() };
+  return { config: { ...BASE, ...overrides }, rating, usedVariation, timestamp: Date.now(), generatedPrompt: '' };
 }
 
 describe('LearningEngine.analyze', () => {

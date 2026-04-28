@@ -1,6 +1,8 @@
 import { select, confirm } from '@inquirer/prompts';
 import chalk from 'chalk';
-import { GeneratedPrompt } from '../core/types';
+import { GeneratedPrompt, PromptConfig } from '../core/types';
+import { FailureReason, PromptFeedback } from '../core/learning';
+import { FeedbackStore } from '../core/store';
 
 export async function pickVariation(v: GeneratedPrompt, preset?: '1' | '2' | '3'): Promise<string> {
   const map = { '1': v.direct, '2': v.contextual, '3': v.chainOfThought } as const;
@@ -67,4 +69,55 @@ function printVariationPreview(v: GeneratedPrompt): void {
   console.log(chalk.bold.magenta('\n  [3] CHAIN-OF-THOUGHT') + chalk.dim('  — raciocínio explícito'));
   console.log(chalk.dim(v.chainOfThought.split('\n').map(l => '      ' + l).join('\n')));
   console.log(`\n${sep}\n`);
+}
+
+// ── Tarefa 1.4 — Coleta de feedback após uso ──────────────────────────────────
+export async function askFeedback(
+  config: PromptConfig,
+  generatedPrompt: string,
+  usedVariation: 'direct' | 'contextual' | 'chainOfThought',
+): Promise<PromptFeedback> {
+  console.log(chalk.dim('\n─── AVALIAÇÃO DO PROMPT ───\n'));
+
+  const rating = await select<1 | 2 | 3 | 4 | 5>({
+    message: chalk.cyan('Avalie o prompt gerado (1-5):'),
+    choices: [
+      { value: 5, name: '5 — Excelente' },
+      { value: 4, name: '4 — Bom' },
+      { value: 3, name: '3 — Regular' },
+      { value: 2, name: '2 — Ruim' },
+      { value: 1, name: '1 — Inútil' },
+    ],
+  });
+
+  let failureReason: FailureReason | undefined;
+  if (rating <= 2) {
+    failureReason = await select<FailureReason>({
+      message: chalk.cyan('Qual foi o problema?'),
+      choices: [
+        { value: 'too_vague',       name: 'Muito vago — faltou contexto' },
+        { value: 'wrong_format',    name: 'Formato errado' },
+        { value: 'wrong_tone',      name: 'Tom inadequado ao público' },
+        { value: 'missing_context', name: 'Faltou role ou restrições' },
+        { value: 'too_long',        name: 'Resposta longa demais' },
+        { value: 'hallucinated',    name: 'IA inventou informações' },
+      ],
+    });
+  }
+
+  const fb: PromptFeedback = {
+    config,
+    generatedPrompt,
+    rating,
+    usedVariation,
+    failureReason,
+    timestamp: Date.now(),
+  };
+
+  const store = new FeedbackStore();
+  store.save(fb);
+  const { total } = store.stats();
+  const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
+  console.log(chalk.green(`\n✔ Feedback salvo ${stars}  (total: ${total} avaliações)`));
+  return fb;
 }

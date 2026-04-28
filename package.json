@@ -7,11 +7,22 @@
     "start": "ts-node src/index.ts",
     "build": "tsc",
     "dev": "ts-node src/index.ts",
-    "test": "jest"
+    "test": "jest",
+    "export-dataset": "ts-node src/core/dataset.ts",
+    "eval": "ts-node src/core/eval.ts",
+    "seed-dataset": "python3 training/seed-dataset.py",
+    "setup-ollama": "bash training/setup-ollama.sh",
+    "finetune": "python3 training/finetune.py"
   },
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
+    "testMatch": ["**/tests/**/*.test.ts"],
+    "globals": {
+      "ts-jest": {
+        "tsconfig": "tsconfig.test.json"
+      }
+    },
     "moduleNameMapper": {
       "^chalk$": "<rootDir>/tests/__mocks__/chalk.js"
     },
@@ -27,7 +38,7 @@
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
-    "@types/node": "^20.0.0",
+    "@types/node": "^20.19.39",
     "jest": "^30.3.0",
     "ts-jest": "^29.4.9",
     "ts-node": "^10.9.0",
