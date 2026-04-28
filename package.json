@@ -1,8 +1,22 @@
 {
   "name": "prompt-generator",
-  "version": "1.0.0",
-  "description": "Gerador de prompts inteligentes para humanos e LLMs",
+  "version": "1.3.0",
+  "description": "CLI inteligente para criar, revisar e executar prompts estruturados para LLMs (ChatGPT, Claude, Gemini, Ollama)",
   "main": "dist/index.js",
+  "license": "MIT",
+  "author": "REDSEC90",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/REDSEC90/prompt-generator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/REDSEC90/prompt-generator/issues"
+  },
+  "homepage": "https://github.com/REDSEC90/prompt-generator#readme",
+  "keywords": [
+    "prompt", "llm", "ai", "cli", "chatgpt", "claude",
+    "ollama", "prompt-engineering", "openai", "anthropic"
+  ],
   "scripts": {
     "start": "ts-node src/index.ts",
     "build": "tsc",

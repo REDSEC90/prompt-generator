@@ -2,3 +2,12 @@ node_modules/
 dist/
 .env
 *.js.map
+coverage/
+exports/
+dataset.jsonl
+training/model-output/
+training/prompt-generator-model/
+training/prompt-generator-model.gguf
+__pycache__/
+*.pyc
+.DS_Store

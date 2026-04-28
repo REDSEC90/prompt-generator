@@ -12,6 +12,7 @@ import { PromptConfig } from './core/types';
 import { LearningEngine } from './core/learning';
 import { FeedbackStore } from './core/store';
 import { generatePrompt, rewritePrompt } from './core/generator';
+import { PromptStore } from './core/prompt-store';
 
 // Sair limpo no Ctrl+C durante wizard interativo
 process.on('SIGINT', () => {
@@ -57,6 +58,51 @@ async function main(): Promise<void> {
   }
 
   const parsed = parseArgs(process.argv);
+
+  // ── CRUD: --list ──────────────────────────────────────────────────────────
+  if (parsed.list) {
+    const prompts = new PromptStore().list();
+    if (prompts.length === 0) {
+      console.log(chalk.yellow('\n  Nenhum prompt salvo ainda. Use --save "nome" após gerar.\n'));
+    } else {
+      console.log(chalk.bold('\n  Prompts salvos:\n'));
+      for (const p of prompts) {
+        const date = new Date(p.updatedAt).toLocaleDateString('pt-BR');
+        console.log(`  ${chalk.cyan(p.name.padEnd(24))} ${chalk.dim(p.config.category.padEnd(14))} ${chalk.dim(date)}`);
+      }
+      console.log('');
+    }
+    return;
+  }
+
+  // ── CRUD: --delete "nome" ─────────────────────────────────────────────────
+  if (parsed.deleteName) {
+    const deleted = new PromptStore().delete(parsed.deleteName);
+    if (deleted) {
+      console.log(chalk.green(`\n✔ Prompt "${parsed.deleteName}" removido.\n`));
+    } else {
+      console.log(chalk.red(`\n✖ Prompt "${parsed.deleteName}" não encontrado.\n`));
+    }
+    return;
+  }
+
+  // ── CRUD: --load "nome" ───────────────────────────────────────────────────
+  if (parsed.load) {
+    const saved = new PromptStore().get(parsed.load);
+    if (!saved) {
+      console.error(chalk.red(`\n✖ Prompt "${parsed.load}" não encontrado. Use --list para ver os disponíveis.\n`));
+      process.exit(1);
+    }
+    console.log(chalk.bold(`\n  Carregando: ${chalk.cyan(saved.name)}\n`));
+    console.log(chalk.dim(saved.prompt));
+    if (!parsed.noSend) {
+      const response = await sendToAI(saved.prompt);
+      if (response && (parsed.autoExport || await askExport())) {
+        exportPrompt(saved.prompt, response);
+      }
+    }
+    return;
+  }
 
   // ── Modo IA generativa: --ai-generate "objetivo" ──────────────────────────
   // Usa generatePrompt() (Tarefa 2.1) em vez do wizard de templates
@@ -130,6 +176,12 @@ async function main(): Promise<void> {
   const response = await sendToAI(chosen);
   if (response && (parsed.autoExport || await askExport())) {
     exportPrompt(chosen, response);
+  }
+
+  // ── CRUD: --save "nome" ───────────────────────────────────────────────────
+  if (parsed.save) {
+    new PromptStore().save(parsed.save, chosen, config as PromptConfig);
+    console.log(chalk.green(`\n✔ Prompt salvo como "${parsed.save}". Use --load "${parsed.save}" para reutilizar.\n`));
   }
 
   const fb = await askFeedback(config as PromptConfig, chosen, chosenKey);
