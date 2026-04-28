@@ -41,6 +41,10 @@ CRUD de prompts salvos:
   --list           Lista todos os prompts salvos
   --delete "nome"  Remove um prompt salvo
 
+  --loop "objetivo"    Loop de aprendizado: gera → avalia → reescreve até convergir
+  --loop-max N         Máximo de iterações do loop (padrão: 5)
+  --loop-target N      Rating alvo para convergência (padrão: 4)
+
   --help        Exibe esta ajuda
 `.trim();
 
@@ -69,6 +73,10 @@ export interface ParsedArgs {
   load?: string;
   list?: boolean;
   deleteName?: string;
+  // Loop de aprendizado (v1.5)
+  loop?: string;
+  loopMax?: number;
+  loopTarget?: 1 | 2 | 3 | 4 | 5;
 }
 
 export function parseArgs(argv: string[]): ParsedArgs {
@@ -104,6 +112,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
   const load       = get('--load');
   const list       = args.includes('--list');
   const deleteName = get('--delete');
+  const loop       = get('--loop');
+  const loopMax    = get('--loop-max')    ? parseInt(get('--loop-max')!, 10)    : undefined;
+  const loopTarget = get('--loop-target') ? parseInt(get('--loop-target')!, 10) as 1|2|3|4|5 : undefined;
 
   const VALID_CATEGORIES = ['summary','code','analysis','marketing','brainstorming','translation','qa','creative'];
   const VALID_TONES      = ['formal','friendly','persuasive','didactic','journalistic','technical'];
@@ -154,5 +165,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
     load,
     list,
     deleteName,
+    loop,
+    loopMax,
+    loopTarget,
   };
 }

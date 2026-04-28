@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import chalk from 'chalk';
 import { runQuestionFlow } from './cli/questions';
-import { pickVariation, askExport, askFeedback } from './cli/ui';
+import { pickVariation, askExport, askFeedback, runLearningLoop } from './cli/ui';
 import { parseArgs } from './cli/args';
 import { VariationGenerator } from './core/variations';
 import { TemplateEngine } from './core/engine';
@@ -104,8 +104,13 @@ async function main(): Promise<void> {
     return;
   }
 
+  // ── Modo loop de aprendizado: --loop "objetivo" ───────────────────────────
+  if (parsed.loop) {
+    await runLearningLoop(parsed.loop, parsed.loopMax, parsed.loopTarget);
+    return;
+  }
+
   // ── Modo IA generativa: --ai-generate "objetivo" ──────────────────────────
-  // Usa generatePrompt() (Tarefa 2.1) em vez do wizard de templates
   if (parsed.aiGenerate) {
     console.log(chalk.dim('  Modo: IA generativa (meta-prompt + few-shot)\n'));
     const prompt = await generatePrompt(parsed.aiGenerate, history);
