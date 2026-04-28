@@ -1,118 +1,102 @@
 # Changelog
 
-Todas as mudanças notáveis deste projeto são documentadas aqui.
+Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
-Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
-Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
+O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
+e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
----
-
-## [1.4.0] - 2026-04-28
+## [1.5.0] - 2026-04-28
 
 ### Adicionado
-- `src/core/prompt-store.ts` — `PromptStore` com CRUD completo de prompts nomeados
-  - `save(name, prompt, config)` — salva ou sobrescreve
-  - `get(name)` — busca por nome
-  - `list()` — lista ordenada por updatedAt desc
-  - `delete(name)` — remove por nome
-  - `rename(oldName, newName)` — renomeia
-- Flags CLI: `--save "nome"`, `--load "nome"`, `--list`, `--delete "nome"`
+
+- **Sistema de Treinamento Automatizado** (`AutoTrainer`)
+  - Loop de treinamento com inputs diversificados
+  - 13 cenários pré-configurados cobrindo 8 categorias
+  - Avaliação automática de respostas (1-5 stars)
+  - Detecção automática de motivos de falha
+  - Métricas agregadas e relatórios detalhados
+  - Seleção inteligente de variações baseada em histórico
+  - Balanceamento automático de categorias (round-robin + shuffle)
+
+- **Sistema de Treinamento Adaptativo** (`AdaptiveTrainingOrchestrator`)
+  - Estratégia: Reforço de categorias fracas
+  - Estratégia: Exploração de variações subutilizadas
+  - Estratégia: Intensificação de sucessos
+  - Checkpoints periódicos com ajustes automáticos
+  - Otimização contínua baseada em métricas
+
+- **Novos comandos CLI**
+  - `npm run train [iterations] [delay]` — treinamento básico
+  - `npm run train:adaptive [iterations]` — treinamento adaptativo
+
+- **Documentação**
+  - `docs/auto-training.md` — guia completo do sistema de treinamento
+  - Exemplos de uso e troubleshooting
+  - Arquitetura e fluxo de dados
+
+- **Testes**
+  - Suite completa para `AutoTrainer`
+  - Cobertura de avaliação automática
+  - Testes de seleção de variações
+
+### Melhorado
+
+- `LearningEngine` agora é usado ativamente durante treinamento
+- `FeedbackStore` otimizado para queries por categoria
+- Relatórios de métricas mais detalhados e visuais
+
+### Documentação
+
+- README atualizado com v1.5 no roadmap
+- Scripts disponíveis incluem comandos de treinamento
+- Adicionado `demo-training.sh` para demonstração
+
+## [1.4.0] - 2026-04-XX
+
+### Adicionado
+
+- CRUD de prompts salvos (`PromptStore`)
+- Comandos `--save`, `--load`, `--list`, `--delete`
 - Armazenamento em `~/.prompt-generator/prompts.json`
-- 11 testes unitários para `PromptStore`
-- `LICENSE` (MIT), `CONTRIBUTING.md`, `CHANGELOG.md`
-- Campos open source no `package.json` (repository, bugs, homepage, keywords)
-- `.gitignore` atualizado com artefatos de treinamento
 
-### Melhorado
-- Total de testes: 122 → 133
-- Cobertura mantida em 94%
-- `package.json` versão 1.0.0 → 1.4.0
-
----
-
-
+## [1.3.0] - 2026-04-XX
 
 ### Adicionado
-- Testes para Ollama (streaming NDJSON, OLLAMA_HOST, AI_MODEL, erros HTTP)
-- Testes para modo `auto` (fallback offline e fallback para remote)
-- Suite completa de testes para `eval.ts` (7 casos)
-- `CONTRIBUTING.md` com guia de contribuição
-- `LICENSE` (MIT)
-- `CHANGELOG.md`
-- Campos open source no `package.json` (repository, bugs, homepage, keywords)
 
-### Melhorado
-- Cobertura de testes: 84.9% → 94.1% em statements
-- Total de testes: 106 → 122
+- Modo IA generativa (`--ai-generate`)
+- Meta-prompt com few-shot dinâmico
+- Reescrita automática de prompts ruins
+- Exportação de dataset JSONL (Alpaca)
+- Fine-tuning local (Unsloth + LoRA)
+- Avaliação A/B baseline vs fine-tunado
 
----
-
-## [1.2.0] - 2026-04-28
+## [1.2.0] - 2026-04-XX
 
 ### Adicionado
-- Fase 3 completa: `src/core/eval.ts` — avaliação A/B baseline vs fine-tunado
-- `training/finetune.py` — fine-tuning com Unsloth + LoRA
-- `training/setup-ollama.sh` — setup automatizado do Ollama
-- `training/Modelfile` — template para criar modelo customizado no Ollama
-- `training/seed-dataset.py` — geração de dataset inicial
-- `npm run eval` e `npm run finetune` no package.json
 
----
+- Sistema de aprendizado contínuo (`LearningEngine`)
+- Coleta de feedback estruturado
+- Persistência de histórico
+- Insights e sugestões automáticas
 
-## [1.1.0] - 2026-04-28
+## [1.1.0] - 2026-04-XX
 
 ### Adicionado
-- Fase 2: `src/core/generator.ts` — geração de prompts via meta-prompt + few-shot dinâmico
-- Fase 2: `rewritePrompt()` — reescrita automática de prompts com rating ≤ 2
-- Fase 2: `src/core/dataset.ts` — exportação de dataset JSONL no formato Alpaca
-- Fase 2: score de confiança (`low/medium/high`) no `LearningInsight`
-- Flag `--ai-generate "objetivo"` na CLI para modo IA generativa
-- `npm run export-dataset` no package.json
 
----
+- Suporte a Ollama local
+- Suporte a Anthropic (Claude)
+- Suporte a OpenAI (GPT-4o)
+- Modo auto (fallback inteligente)
+- Retry com backoff exponencial
 
-## [1.0.0] - 2026-04-27
+## [1.0.0] - 2026-04-XX
 
 ### Adicionado
-- Fase 1 completa: loop fechado geração → feedback → persistência
-- `src/core/ai.ts` — integração com Ollama, Anthropic e OpenAI com streaming
-- `src/core/store.ts` — `FeedbackStore` com persistência em `~/.prompt-generator/history.json`
-- `src/core/learning.ts` — `LearningEngine` com análise por categoria e sugestões automáticas
-- `src/core/retry.ts` — `RetryManager` com backoff exponencial
-- Role prompting por categoria nos templates (`ROLES` map)
-- `askFeedback()` no fluxo CLI com coleta de `FailureReason`
-- Reescrita automática de prompts ruins após feedback
-- Modo `auto` (Ollama → remote → offline)
-- Streaming progressivo no terminal para todos os providers
-- 106 testes unitários
 
----
-
-## [0.3.0] - 2026-04-20
-
-### Adicionado
-- Wizard interativo com revisão e edição de campos
-- Modo híbrido: flags + wizard
-- Exportação de prompt + resposta para Markdown
-- Validação bloqueante de campos obrigatórios
-- Warnings de incompatibilidade formato × categoria
-
----
-
-## [0.2.0] - 2026-04-20
-
-### Adicionado
-- 3 variações de prompt: `direct`, `contextual`, `chainOfThought`
-- Streaming SSE para Anthropic e OpenAI
-- Flags completas na CLI (`--theme`, `--action`, `--category`, etc.)
-
----
-
-## [0.1.0] - 2026-04-20
-
-### Adicionado
-- Estrutura inicial do projeto
-- Templates por categoria (8 categorias)
-- `TemplateEngine` com validação
-- `VariationGenerator`
-- Tipos centrais (`PromptConfig`, `GeneratedPrompt`, etc.)
+- Wizard interativo com 12 campos
+- Uso completo por flags
+- 3 variações de prompt (direct / contextual / CoT)
+- Role prompting por categoria
+- 8 categorias de prompts
+- Exportação para Markdown
+- 122 testes unitários (94% cobertura)

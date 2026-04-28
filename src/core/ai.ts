@@ -76,7 +76,7 @@ async function streamOllama(res: Response): Promise<string> {
   return full;
 }
 
-async function callOllama(prompt: string, ollamaOpts?: Record<string, unknown>): Promise<string> {
+export async function callOllama(prompt: string, ollamaOpts?: Record<string, unknown>): Promise<string> {
   const model     = process.env.AI_MODEL    ?? 'prompt-generator';
   const base      = process.env.OLLAMA_HOST ?? 'http://localhost:11434';
   const timeoutMs = parseInt(process.env.OLLAMA_TIMEOUT ?? '300000', 10);

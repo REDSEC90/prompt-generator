@@ -171,6 +171,10 @@ npm run export-dataset             # exporta dataset JSONL
 npm run export-dataset out.jsonl 4 # caminho e rating mínimo customizados
 npm run eval                       # avaliação A/B dos modelos
 npm run eval "objetivo 1" "obj 2"  # com objetivos customizados
+npm run train                      # treinamento automatizado (50 iterações)
+npm run train 100                  # treinamento com 100 iterações
+npm run train:adaptive             # treinamento adaptativo (100 iterações)
+npm run train:adaptive 200         # treinamento adaptativo com 200 iterações
 npm run seed-dataset               # gera dataset inicial (Python)
 npm run setup-ollama               # instala e configura Ollama
 npm run finetune                   # fine-tuning local (requer GPU)
@@ -190,7 +194,23 @@ npm run build                      # compila TypeScript
 - [x] `npm start -- --delete "nome"` — remove prompt salvo
 - [x] Armazenamento em `~/.prompt-generator/prompts.json`
 
-### v1.5 — Novos providers e modelos
+### v1.5 — Sistema de Treinamento Automatizado ✅
+
+- [x] `AutoTrainer` — loop de treinamento com inputs diversificados
+- [x] 13 cenários pré-configurados cobrindo 8 categorias
+- [x] Avaliação automática de respostas (1-5 stars)
+- [x] Detecção de motivos de falha
+- [x] Métricas agregadas e relatórios detalhados
+- [x] `AdaptiveTrainingOrchestrator` — estratégias adaptativas
+- [x] Reforço de categorias fracas
+- [x] Exploração de variações subutilizadas
+- [x] Intensificação de sucessos
+- [x] `npm run train` — treinamento básico
+- [x] `npm run train:adaptive` — treinamento adaptativo
+- [x] Documentação completa em `docs/auto-training.md`
+- [x] Testes unitários para AutoTrainer
+
+### v1.6 — Novos providers e modelos
 
 - [ ] Gemini (Google AI Studio)
 - [ ] Mistral API
