@@ -13,6 +13,7 @@ import { LearningEngine } from './core/learning';
 import { FeedbackStore } from './core/store';
 import { generatePrompt, rewritePrompt } from './core/generator';
 import { PromptStore } from './core/prompt-store';
+import { runAutoLoop } from './core/auto-loop';
 
 // Sair limpo no Ctrl+C durante wizard interativo
 process.on('SIGINT', () => {
@@ -101,6 +102,37 @@ async function main(): Promise<void> {
         exportPrompt(saved.prompt, response);
       }
     }
+    return;
+  }
+
+  // ── Modo loop autônomo: --auto ────────────────────────────────────────────
+  if (parsed.auto) {
+    console.log(chalk.bold.magenta('\n╔══════════════════════════════════════╗'));
+    console.log(chalk.bold.magenta('║') + chalk.bold.white('     LOOP AUTÔNOMO INFINITO           ') + chalk.bold.magenta('║'));
+    console.log(chalk.bold.magenta('╚══════════════════════════════════════╝'));
+    console.log(chalk.dim('  Avaliação por IA (LLM-as-judge). Ctrl+C para parar.\n'));
+
+    await runAutoLoop(
+      (stats) => {
+        const conv = `${stats.convergedRuns}/${stats.totalRuns}`;
+        const bar  = '█'.repeat(Math.round(stats.avgFinalRating)) + '░'.repeat(5 - Math.round(stats.avgFinalRating));
+        console.log(
+          chalk.bold.magenta(`\n  ── Ciclo ${stats.totalRuns} ──`) +
+          chalk.dim(`  convergidos: ${conv}`) +
+          chalk.dim(`  rating médio: ${bar} ${stats.avgFinalRating}`) +
+          chalk.dim(`  iterações: ${stats.totalIterations}`)
+        );
+        if (stats.bestRating >= 4) {
+          console.log(chalk.dim(`  melhor até agora: ${stats.bestRating}★  "${stats.bestGoal.slice(0, 50)}"`));
+        }
+      },
+      parsed.autoMax,
+      parsed.autoTarget,
+    );
+
+    const finalStore = new FeedbackStore();
+    const { total, avgRating } = finalStore.stats();
+    console.log(chalk.bold.green(`\n✔ Loop encerrado. ${total} prompts no histórico | média: ${avgRating.toFixed(1)} ★\n`));
     return;
   }
 

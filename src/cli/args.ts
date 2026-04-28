@@ -44,6 +44,9 @@ CRUD de prompts salvos:
   --loop "objetivo"    Loop de aprendizado: gera → avalia → reescreve até convergir
   --loop-max N         Máximo de iterações do loop (padrão: 5)
   --loop-target N      Rating alvo para convergência (padrão: 4)
+  --auto               Loop autônomo infinito com avaliação por IA (Ctrl+C para parar)
+  --auto-max N         Máximo de iterações por ciclo no modo auto (padrão: 4)
+  --auto-target N      Rating alvo por ciclo no modo auto (padrão: 4)
 
   --help        Exibe esta ajuda
 `.trim();
@@ -77,6 +80,10 @@ export interface ParsedArgs {
   loop?: string;
   loopMax?: number;
   loopTarget?: 1 | 2 | 3 | 4 | 5;
+  // Loop autônomo (v1.5)
+  auto?: boolean;
+  autoMax?: number;
+  autoTarget?: 1 | 2 | 3 | 4 | 5;
 }
 
 export function parseArgs(argv: string[]): ParsedArgs {
@@ -115,6 +122,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
   const loop       = get('--loop');
   const loopMax    = get('--loop-max')    ? parseInt(get('--loop-max')!, 10)    : undefined;
   const loopTarget = get('--loop-target') ? parseInt(get('--loop-target')!, 10) as 1|2|3|4|5 : undefined;
+  const auto       = args.includes('--auto');
+  const autoMax    = get('--auto-max')    ? parseInt(get('--auto-max')!, 10)    : undefined;
+  const autoTarget = get('--auto-target') ? parseInt(get('--auto-target')!, 10) as 1|2|3|4|5 : undefined;
 
   const VALID_CATEGORIES = ['summary','code','analysis','marketing','brainstorming','translation','qa','creative'];
   const VALID_TONES      = ['formal','friendly','persuasive','didactic','journalistic','technical'];
@@ -168,5 +178,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
     loop,
     loopMax,
     loopTarget,
+    auto,
+    autoMax,
+    autoTarget,
   };
 }
