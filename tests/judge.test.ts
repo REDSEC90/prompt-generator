@@ -1,9 +1,12 @@
-jest.mock('../src/core/ai', () => ({ sendToAI: jest.fn() }));
+jest.mock('../src/core/ai', () => ({
+  sendToAI: jest.fn(),
+  sendToAIFast: jest.fn(),
+}));
 
 import { judgePrompt, generateAndJudge } from '../src/core/judge';
-import { sendToAI } from '../src/core/ai';
+import { sendToAIFast } from '../src/core/ai';
 
-const mockSend = sendToAI as jest.Mock;
+const mockSend = sendToAIFast as jest.Mock;
 
 beforeEach(() => jest.resetAllMocks());
 

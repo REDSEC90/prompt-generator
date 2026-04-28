@@ -107,8 +107,9 @@ export async function runAutoLoop(
     stats.totalRuns++;
     stats.totalIterations += iterCount;
     if (converged) stats.convergedRuns++;
+    const safeRating = Number.isFinite(finalRating) ? finalRating : 3;
     stats.avgFinalRating = parseFloat(
-      ((stats.avgFinalRating * (stats.totalRuns - 1) + finalRating) / stats.totalRuns).toFixed(2)
+      ((stats.avgFinalRating * (stats.totalRuns - 1) + safeRating) / stats.totalRuns).toFixed(2)
     );
     if (finalRating > stats.bestRating && currentPrompt) {
       stats.bestRating = finalRating;

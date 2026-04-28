@@ -76,10 +76,10 @@ async function streamOllama(res: Response): Promise<string> {
   return full;
 }
 
-async function callOllama(prompt: string): Promise<string> {
+async function callOllama(prompt: string, ollamaOpts?: Record<string, unknown>): Promise<string> {
   const model     = process.env.AI_MODEL    ?? 'prompt-generator';
   const base      = process.env.OLLAMA_HOST ?? 'http://localhost:11434';
-  const timeoutMs = parseInt(process.env.OLLAMA_TIMEOUT ?? '120000', 10);
+  const timeoutMs = parseInt(process.env.OLLAMA_TIMEOUT ?? '300000', 10);
 
   const spinner = ora({ text: chalk.dim(`Ollama (${model})…`), color: 'green' }).start();
 
@@ -90,7 +90,7 @@ async function callOllama(prompt: string): Promise<string> {
       return fetch(`${base}/api/generate`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ model, prompt, stream: true }),
+        body:    JSON.stringify({ model, prompt, stream: true, ...(ollamaOpts ? { options: ollamaOpts } : {}) }),
         signal:  controller.signal,
       }).then(r => { clearTimeout(timer); return throwOnStatus(r); })
        .catch(e => { clearTimeout(timer); throw e; });
@@ -273,4 +273,24 @@ export async function resolveAIStatus(): Promise<{ mode: AIMode; provider: strin
   }
 
   return { mode: 'offline', provider: 'offline', available: false };
+}
+
+/**
+ * Chamada Ollama otimizada para o loop autônomo:
+ * - num_predict limitado (evita respostas longas desnecessárias)
+ * - temperature=0 (respostas determinísticas)
+ * - modelo configurável via AUTO_MODEL (padrão: llama3.2:1b)
+ */
+export async function sendToAIFast(
+  prompt: string,
+  numPredict = 300,
+): Promise<string> {
+  const savedModel = process.env.AI_MODEL;
+  process.env.AI_MODEL = process.env.AUTO_MODEL ?? 'llama3.2:1b';
+  try {
+    return await callOllama(prompt, { num_predict: numPredict, temperature: 0 });
+  } finally {
+    if (savedModel !== undefined) process.env.AI_MODEL = savedModel;
+    else delete process.env.AI_MODEL;
+  }
 }
