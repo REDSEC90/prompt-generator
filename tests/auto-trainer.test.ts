@@ -1,6 +1,6 @@
 import { AutoTrainer } from '../src/core/auto-trainer';
 import { FeedbackStore } from '../src/core/store';
-import { callOllama } from '../src/core/ai';
+import { callOllamaSilent } from '../src/core/ai';
 
 jest.mock('../src/core/ai');
 
@@ -21,16 +21,16 @@ describe('AutoTrainer', () => {
 
   describe('runTrainingLoop', () => {
     it('deve executar número correto de iterações', async () => {
-      (callOllama as jest.Mock).mockResolvedValue('Resposta mock com jwt verify token middleware function');
+      (callOllamaSilent as jest.Mock).mockResolvedValue('Resposta mock com jwt verify token middleware function');
 
       const metrics = await trainer.runTrainingLoop(3, 100);
 
       expect(metrics.totalRuns).toBeGreaterThanOrEqual(3);
-      expect(callOllama).toHaveBeenCalledTimes(3);
+      expect(callOllamaSilent).toHaveBeenCalledTimes(3);
     });
 
     it('deve salvar feedback no histórico', async () => {
-      (callOllama as jest.Mock).mockResolvedValue('Mock response with expected keywords');
+      (callOllamaSilent as jest.Mock).mockResolvedValue('Mock response with expected keywords');
 
       await trainer.runTrainingLoop(2, 100);
 
@@ -41,7 +41,7 @@ describe('AutoTrainer', () => {
     });
 
     it('deve calcular métricas corretamente', async () => {
-      (callOllama as jest.Mock).mockResolvedValue('Complete response with all expected keywords and proper length for testing purposes');
+      (callOllamaSilent as jest.Mock).mockResolvedValue('Complete response with all expected keywords and proper length for testing purposes');
 
       const metrics = await trainer.runTrainingLoop(5, 100);
 

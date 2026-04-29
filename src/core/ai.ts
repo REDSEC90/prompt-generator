@@ -276,6 +276,44 @@ export async function resolveAIStatus(): Promise<{ mode: AIMode; provider: strin
 }
 
 /**
+ * Chamada Ollama sem streaming — mais rápida para uso em batch/treinamento.
+ * Retorna a resposta completa em uma única requisição JSON.
+ */
+export async function callOllamaSilent(
+  prompt: string,
+  ollamaOpts?: Record<string, unknown>,
+): Promise<string> {
+  const model     = process.env.AI_MODEL    ?? 'prompt-generator';
+  const base      = process.env.OLLAMA_HOST ?? 'http://localhost:11434';
+  // stream:false aguarda a resposta completa — usa timeout maior que o streaming
+  const timeoutMs = parseInt(process.env.OLLAMA_TIMEOUT ?? '600000', 10);
+
+  try {
+    return await new RetryManager().execute(async () => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(`${base}/api/generate`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ model, prompt, stream: false, ...(ollamaOpts ? { options: ollamaOpts } : {}) }),
+          signal:  controller.signal,
+        });
+        clearTimeout(timer);
+        throwOnStatus(res);
+        const json = await res.json() as { response: string };
+        return json.response ?? '';
+      } catch (e) {
+        clearTimeout(timer);
+        throw e;
+      }
+    });
+  } catch (e: any) {
+    throw e;
+  }
+}
+
+/**
  * Chamada Ollama otimizada para o loop autônomo:
  * - num_predict limitado (evita respostas longas desnecessárias)
  * - temperature=0 (respostas determinísticas)

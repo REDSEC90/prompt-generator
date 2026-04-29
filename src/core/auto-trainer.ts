@@ -1,7 +1,7 @@
 import { PromptConfig, Category, OutputFormat, Tone } from './types';
 import { TemplateEngine } from './engine';
 import { VariationGenerator } from './variations';
-import { callOllama } from './ai';
+import { callOllamaSilent } from './ai';
 import { FeedbackStore } from './store';
 import { LearningEngine, PromptFeedback, FailureReason } from './learning';
 
@@ -209,24 +209,27 @@ export class AutoTrainer {
   /**
    * Executa loop de treinamento automatizado
    */
-  async runTrainingLoop(iterations: number, delayMs = 2000): Promise<TrainingMetrics> {
+  async runTrainingLoop(iterations: number, delayMs = 0): Promise<TrainingMetrics> {
     console.log(`\n🎯 Iniciando treinamento automatizado: ${iterations} iterações\n`);
 
     const startTime = Date.now();
     let successCount = 0;
+    // Cache do histórico em memória — evita leitura de disco a cada iteração
+    let history = this.store.load();
 
     for (let i = 0; i < iterations; i++) {
       const scenario = this.selectScenario(i);
       console.log(`\n[${ i + 1 }/${iterations}] ${scenario.category.toUpperCase()} — ${scenario.theme}`);
 
       try {
-        await this.runSingleTraining(scenario);
+        const feedback = await this.runSingleTraining(scenario, history);
+        history.push(feedback);
         successCount++;
       } catch (err) {
         console.error(`  ❌ Erro: ${err instanceof Error ? err.message : String(err)}`);
       }
 
-      if (i < iterations - 1) {
+      if (delayMs > 0 && i < iterations - 1) {
         await this.delay(delayMs);
       }
     }
@@ -240,7 +243,7 @@ export class AutoTrainer {
   /**
    * Executa um único ciclo de treinamento
    */
-  private async runSingleTraining(scenario: TrainingScenario): Promise<void> {
+  private async runSingleTraining(scenario: TrainingScenario, history: PromptFeedback[]): Promise<PromptFeedback> {
     // 1. Criar configuração
     const config: PromptConfig = {
       theme: scenario.theme,
@@ -253,28 +256,27 @@ export class AutoTrainer {
       language: scenario.language,
     };
 
-    // 2. Aplicar sugestões do learning engine
-    const history = this.store.load();
+    // 2. Aplicar sugestões do learning engine (usa histórico em cache)
     const suggestions = this.learningEngine.suggest(config, history);
     Object.assign(config, suggestions);
 
     // 3. Gerar prompt
-    const basePrompt = this.engine.fill(config);
+    this.engine.fill(config);
     const variations = this.variationGen.generate(config);
 
     // 4. Selecionar variação baseada em histórico
     const variation = this.selectBestVariation(config.category, history);
     const finalPrompt = variations[variation];
 
-    // 5. Executar no Ollama
+    // 5. Executar no Ollama sem streaming (mais rápido para batch)
     console.log(`  🔄 Executando variação: ${variation}`);
-    const response = await callOllama(finalPrompt, { temperature: 0.7 });
+    const response = await callOllamaSilent(finalPrompt, { temperature: 0.7, num_predict: 600 });
 
     // 6. Avaliar resposta automaticamente
     const rating = this.evaluateResponse(response, scenario);
     console.log(`  ⭐ Rating automático: ${rating}/5`);
 
-    // 7. Salvar feedback
+    // 7. Montar e salvar feedback
     const feedback: PromptFeedback = {
       config,
       generatedPrompt: finalPrompt,
@@ -289,6 +291,7 @@ export class AutoTrainer {
     }
 
     this.store.save(feedback);
+    return feedback;
   }
 
   /**
